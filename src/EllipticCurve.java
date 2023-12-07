@@ -109,6 +109,7 @@ public class EllipticCurve implements EllipticCurveCryptography {
         // s <- KMACXOF256(pw, “”, 448, “SK”)
         byte[] s_0 = KMAC.KMACXOF256(passphrase.getBytes(), "".getBytes(), 448, "SK");
 
+        // private key
         // s <- 4s (mod r)
         BigInteger s = BigInteger.valueOf(4).multiply(new BigInteger(s_0)).mod(r);
 
@@ -119,19 +120,36 @@ public class EllipticCurve implements EllipticCurveCryptography {
         BigInteger k = BigInteger.valueOf(4).multiply(new BigInteger(k_0)).mod(r);
 
         // U <- k * G
+        // let k = z + hs
+        // let z = k - hs
+        // using theorem that has been tested valid
+        // (z + hs) * G = (z * G) + (hs * G)
+        // using theorem that has been tested valid
+        // (z + hs) * G = (z * G) + h * (s * G) <- this is public key
+        // (z + hs) * G = (z * G) + (h * V)
+        // k * G = (z * G) + (h * V)
+        // U <- k * G = (z * G) + (h * V) -> U'
         EllipticCurvePoint U = EllipticCurvePoint.getPublicGenerator().multiplyByScalar(k);
-        System.out.println(U);
+//        System.out.println(U + "\n");
 
         // h <- KMACXOF256(U_x, m, 448, “T”)
-        byte[] h_0 = KMAC.KMACXOF256(U.getX().toByteArray(), message, 448, "T");
-        BigInteger h = new BigInteger(h_0);
+        BigInteger h = new BigInteger(KMAC.KMACXOF256(U.getX().toByteArray(), message, 448, "T"));
 
         // z <- (k - hs) mod r
-        BigInteger z = k.subtract(h.multiply(s)).mod(r);
+        BigInteger hs = h.multiply(s).mod(r);
+        BigInteger h2 = hs.multiply(s.modInverse(r).mod(r));
+        System.out.println(h2);
+        System.out.println(h2.multiply(s).mod(r));
+        BigInteger z = k.subtract(hs).mod(r);
+
+//        EllipticCurvePoint U_prime = EllipticCurvePoint.getPublicGenerator().multiplyByScalar(z)
+//                                     .add(EllipticCurvePoint.getPublicGenerator().multiplyByScalar(h).multiplyByScalar(s));
+//        System.out.println(U_prime);
+
 
         // signature: (h, z)
-        outFile.printf("%s\n", h);
-        outFile.printf("%s", z);
+        outFile.printf("%s\n", h); // c
+        outFile.printf("%s", z); // d
     }
 
     /**
@@ -139,18 +157,18 @@ public class EllipticCurve implements EllipticCurveCryptography {
      */
     @Override
     public boolean verifySignature(byte[] message, Signature signature, EllipticCurvePoint publicKey) {
-        BigInteger z = signature.getZ();
-        BigInteger h = signature.getH();
+        BigInteger h = signature.getH(); // c
+        BigInteger z = signature.getZ(); // d
 
         // U <- z * G + h * V
-        EllipticCurvePoint U = EllipticCurvePoint.getPublicGenerator().multiplyByScalar(z).add(publicKey.multiplyByScalar(h));
-        System.out.println(U);
+        EllipticCurvePoint U = EllipticCurvePoint.getPublicGenerator().multiplyByScalar(z)
+                               .add(publicKey.multiplyByScalar(h));
 
         // h' <- KMACXOF256(U_x, m, 448, “T”)
         byte[] h_prime = KMAC.KMACXOF256(U.getX().toByteArray(), message, 448, "T");
 
         // accept iff h' = h
-        return Arrays.equals(h.toByteArray(), h_prime);
+        return h.equals(new BigInteger(h_prime));
     }
 
     private byte[] concat(byte[] a, byte[] b) {
