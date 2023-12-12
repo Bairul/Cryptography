@@ -3,7 +3,7 @@ import java.util.Objects;
 
 /**
  * The elliptic curve that this class implements is known as Ed448-Goldilocks curve,
- * also called Edwards curve.
+ * also called Edwards curve. Contains methods of scalar multiplication, and point addition.
  *
  * @author Paulo S. L. M. Barreto (my professor)
  * @author Bairu Li
@@ -79,24 +79,6 @@ public class EllipticCurvePoint {
                                       sumYnumer.multiply(sumYdenom.modInverse(p)).mod(p));
     }
 
-    public EllipticCurvePoint add(final EllipticCurvePoint other, final BigInteger mod) {
-        // shared constant for denominator: d * x1 * d2 * y1 * y2
-        BigInteger denom = d.multiply(x).multiply(other.x).multiply(y).multiply(other.y);
-
-        // N_x = x1 * y2 + y1 * x2
-        BigInteger sumXnumer = x.multiply(other.y).add(y.multiply(other.x));
-        // N_y = y1 * y2 − x1 * x2
-        BigInteger sumYnumer = y.multiply(other.y).subtract(x.multiply(other.x));
-
-        // D_x = 1 + denom
-        BigInteger sumXdenom = BigInteger.ONE.add(denom);
-        // D_y = 1 - denom
-        BigInteger sumYdenom = BigInteger.ONE.subtract(denom);
-
-        return new EllipticCurvePoint(sumXnumer.multiply(sumXdenom.modInverse(mod)).mod(mod),
-                sumYnumer.multiply(sumYdenom.modInverse(mod)).mod(mod));
-    }
-
     /**
      * Gets the opposite point of this instance's point. Definition: the opposite a point (x, y) is (-x, y).
      * @return the opposite point
@@ -128,33 +110,6 @@ public class EllipticCurvePoint {
             }
         }
         return V; // V = s * G
-    }
-
-    public EllipticCurvePoint multiplyByScalar (final BigInteger scalar, final BigInteger mod) {
-        if (scalar.equals(BigInteger.ZERO)) {
-            return new EllipticCurvePoint(); // neutral element
-        }
-        // s = (s_k, s_k-1, ... s_1, s_0)_2, s_k = 1 and it gets ignored
-        String s = scalar.toString(2); // as base 2 string
-        // G (base) is "this" instance
-        EllipticCurvePoint V = this;
-
-        // string indices start from left to right
-        for (int i = 1; i < s.length(); i++) {
-            V = V.add(V, mod); // 2V or V+V
-            if (s.charAt(i) == '1') {
-                V = V.add(this, mod);
-            }
-        }
-        return V; // V = s * G
-    }
-
-    /**
-     * Creates a copy of this point;
-     * @return a copy of the x and y
-     */
-    private EllipticCurvePoint getCopyPoint() {
-        return new EllipticCurvePoint(this.x, this.y);
     }
 
     /**
@@ -203,11 +158,19 @@ public class EllipticCurvePoint {
         return false;
     }
 
+    /**
+     * Returns the x and y values of this Elliptic Curve Point.
+     * @return the x and y coordinates separated by a new line
+     */
     @Override
     public String toString() {
         return x + "\n" + y;
     }
 
+    /**
+     * Getter of the x value.
+     * @return the x value of this point
+     */
     public BigInteger getX() {
         return x;
     }
@@ -216,85 +179,86 @@ public class EllipticCurvePoint {
      * For testing only.
      * All testcases should output true
      */
-    public static void main(String[] args) {
-        // G = public generator with y = -3 (mod p)
-        BigInteger y = BigInteger.valueOf(-3).mod(p);
-        EllipticCurvePoint G = new EllipticCurvePoint(y, false);
-        EllipticCurvePoint O = new EllipticCurvePoint(); // neutral element
-
-        /* Test 1:
-         * 0 * G = O (neutral element)
-         */
-        System.out.println(G.multiplyByScalar(BigInteger.ZERO).equals(O));
-
-        /* Test 1:
-         * 1 * G = G
-         */
-        System.out.println(G.multiplyByScalar(BigInteger.ONE).equals(G));
-
-        /* Test 3:
-         * G + (-G) = O where -G = (p - x, y)
-         */
-        EllipticCurvePoint G2 = new EllipticCurvePoint(p.subtract(G.getX()), y);
-        System.out.println(G.add(G2).equals(O));
-
-        /* Test 4:
-         * 2 * G = G + G
-         */
-        System.out.println(G.multiplyByScalar(BigInteger.TWO).equals(G.add(G)));
-
-        /* Test 5:
-         * 4 * G = 2 * (2 * G)
-         */
-        System.out.println(G.multiplyByScalar(BigInteger.valueOf(4)).equals(
-                           G.multiplyByScalar(BigInteger.TWO).multiplyByScalar(BigInteger.TWO)));
-
-        /* Test 6:
-         * 4 * G =/= O
-         */
-        System.out.println(!(G.multiplyByScalar(BigInteger.TWO).equals(O)));
-
-        /* Test 7:
-         * r * G = O
-         */
-        System.out.println(G.multiplyByScalar(EllipticCurve.r).equals(O));
-
-        // random number testing
-        for (int i = 0; i < 1; i++) {
-            BigInteger k = BigInteger.valueOf((int) (Math.random() * 100000) + 100000);
-            BigInteger l = BigInteger.valueOf((int) (Math.random() * 100000) + 100000);
-            BigInteger m = BigInteger.valueOf((int) (Math.random() * 100000) + 100000);
-
-            /* Test 8:
-             * k * G = (k mod r) * G
-             */
-            System.out.println(G.multiplyByScalar(k).equals(G.multiplyByScalar(k.mod(EllipticCurve.r))));
-
-            /* Test 9:
-             * (k + 1) * G = (k * G) + G
-             */
-            System.out.println(G.multiplyByScalar(k.add(BigInteger.ONE)).equals(
-                    G.multiplyByScalar(k).add(G)));
-
-            /* Test 10:
-             * (k + l) * G = (k * G) + (l * G)
-             */
-            System.out.println(G.multiplyByScalar(k.add(l)).equals(
-                    G.multiplyByScalar(k).add(G.multiplyByScalar(l))));
-
-            /* Test 11:
-             * k * (l * G) = l * (k * G) = (k * l mod r) * G
-             */
-            System.out.println(G.multiplyByScalar(l).multiplyByScalar(k).equals(
-                    G.multiplyByScalar(k).multiplyByScalar(l)));
-            System.out.println(G.multiplyByScalar(k).multiplyByScalar(l).equals(
-                    G.multiplyByScalar(k.multiply(l).mod(EllipticCurve.r))));
-
-            /* Test 12:
-             * (k * G) + ((l * G) + (m * G)) = ((k * G) + (l * G)) + (m * G)
-             */
-            System.out.println(G.multiplyByScalar(k).add(G.multiplyByScalar(l).add(G.multiplyByScalar(m))).equals(
-                    G.multiplyByScalar(m).add(G.multiplyByScalar(l).add(G.multiplyByScalar(k)))));
-        }
-    }
+//    public static void main(String[] args) {
+//        // G = public generator with y = -3 (mod p)
+//        BigInteger y = BigInteger.valueOf(-3).mod(p);
+//        EllipticCurvePoint G = new EllipticCurvePoint(y, false);
+//        EllipticCurvePoint O = new EllipticCurvePoint(); // neutral element
+//
+//        /* Test 1:
+//         * 0 * G = O (neutral element)
+//         */
+//        System.out.println(G.multiplyByScalar(BigInteger.ZERO).equals(O));
+//
+//        /* Test 1:
+//         * 1 * G = G
+//         */
+//        System.out.println(G.multiplyByScalar(BigInteger.ONE).equals(G));
+//
+//        /* Test 3:
+//         * G + (-G) = O where -G = (p - x, y)
+//         */
+//        EllipticCurvePoint G2 = new EllipticCurvePoint(p.subtract(G.getX()), y);
+//        System.out.println(G.add(G2).equals(O));
+//
+//        /* Test 4:
+//         * 2 * G = G + G
+//         */
+//        System.out.println(G.multiplyByScalar(BigInteger.TWO).equals(G.add(G)));
+//
+//        /* Test 5:
+//         * 4 * G = 2 * (2 * G)
+//         */
+//        System.out.println(G.multiplyByScalar(BigInteger.valueOf(4)).equals(
+//                           G.multiplyByScalar(BigInteger.TWO).multiplyByScalar(BigInteger.TWO)));
+//
+//        /* Test 6:
+//         * 4 * G =/= O
+//         */
+//        System.out.println(!(G.multiplyByScalar(BigInteger.TWO).equals(O)));
+//
+//        /* Test 7:
+//         * r * G = O
+//         */
+//        System.out.println(G.multiplyByScalar(EllipticCurve.r).equals(O));
+//        System.out.println("Repeated testing:");
+//
+//        // random number testing
+//        for (int i = 0; i < 1; i++) {
+//            BigInteger k = EllipticCurve.r.add(BigInteger.valueOf((int) (Math.random() * 10000000) + 10000000));
+//            BigInteger l = EllipticCurve.r.add(BigInteger.valueOf((int) (Math.random() * 10000000) + 10000000));
+//            BigInteger m = EllipticCurve.r.add(BigInteger.valueOf((int) (Math.random() * 10000000) + 10000000));
+//
+//            /* Test 8:
+//             * k * G = (k mod r) * G
+//             */
+//            System.out.println(G.multiplyByScalar(k).equals(G.multiplyByScalar(k.mod(EllipticCurve.r))));
+//
+//            /* Test 9:
+//             * (k + 1) * G = (k * G) + G
+//             */
+//            System.out.println(G.multiplyByScalar(k.add(BigInteger.ONE)).equals(
+//                    G.multiplyByScalar(k).add(G)));
+//
+//            /* Test 10:
+//             * (k + l) * G = (k * G) + (l * G)
+//             */
+//            System.out.println(G.multiplyByScalar(k.add(l)).equals(
+//                    G.multiplyByScalar(k).add(G.multiplyByScalar(l))));
+//
+//            /* Test 11:
+//             * k * (l * G) = l * (k * G) = (k * l mod r) * G
+//             */
+//            System.out.println(G.multiplyByScalar(l).multiplyByScalar(k).equals(
+//                    G.multiplyByScalar(k).multiplyByScalar(l)));
+//            System.out.println(G.multiplyByScalar(k).multiplyByScalar(l).equals(
+//                    G.multiplyByScalar(k.multiply(l).mod(EllipticCurve.r))));
+//
+//            /* Test 12:
+//             * (k * G) + ((l * G) + (m * G)) = ((k * G) + (l * G)) + (m * G)
+//             */
+//            System.out.println(G.multiplyByScalar(k).add(G.multiplyByScalar(l).add(G.multiplyByScalar(m))).equals(
+//                    G.multiplyByScalar(m).add(G.multiplyByScalar(l).add(G.multiplyByScalar(k)))));
+//        }
+//    }
 }

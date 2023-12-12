@@ -3,6 +3,7 @@ import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 public class Main {
@@ -55,7 +56,7 @@ public class Main {
             quitTerminal(out, scan, inputFile);
             return;
         }
-        if (opt != OptionSelect.DECRYPT_FILE && opt != OptionSelect.HASH_INPUT && opt != OptionSelect.MAC_INPUT) {
+        if (opt != OptionSelect.DECRYPT_FILE_EC && opt != OptionSelect.DECRYPT_FILE && opt != OptionSelect.HASH_INPUT && opt != OptionSelect.MAC_INPUT) {
             data = getDataFromFile(inputFile);
         }
         if (opt != OptionSelect.VERIFY_FILE) {
@@ -128,51 +129,134 @@ public class Main {
                 }
             }
             case GEN_KEYPAIR -> {
-                PrintStream  in_ec;
+                PrintStream in_ec;
                 try {
                     in_ec = new PrintStream(args[0]);
                 } catch (FileNotFoundException e) {
                     System.out.println("Sorry, cannot find input file \"" + args[0] + "\". Please try again.");
-                    return;
+                    break;
                 }
                 ec.generateKeyPairToFile(passphrase, in_ec, out);
                 in_ec.close();
-                System.out.println("Generation Success.");
+                System.out.println("Generation Success.\nYour private key is stored in \"" + args[0] +"\".\nYour public key is stored in \"" + args[1] + "\"");
             }
             case ENCRYPT_FILE_EC -> {
+                Scanner pkFile;
+                try {
+                    pkFile = new Scanner(new File(args[2]));
+                    if (!pkFile.hasNext()) {
+                        System.out.println("Warning! Empty public key file \"" + args[2] + "\".");
+                        break;
+                    }
+                } catch (FileNotFoundException e) {
+                    System.out.println("Sorry, cannot find public key file \"" + args[2] + "\". Please try again.");
+                    break;
+                }
+                pkFile.nextLine();
+                EllipticCurvePoint pk;
+                try {
+                    pk = new EllipticCurvePoint(new BigInteger(pkFile.nextLine()), new BigInteger(pkFile.nextLine()));
+                } catch (NoSuchElementException | NumberFormatException e) {
+                    System.out.println("Oh no! Public Key has been tampered.");
+                    break;
+                }
 
+                ec.encrypt(data, pk, out);
+                System.out.println("Encryption Complete. See \"" + args[1] + "\" file for the cryptogram.");
+                pkFile.close();
             }
             case DECRYPT_FILE_EC -> {
+                if (!inputFile.hasNext()) {
+                    System.out.println("Oh no! Decryption failed. Empty cryptogram file \"" + args[0] + "\"");
+                    break;
+                }
+                inputFile.nextLine();
+                EllipticCurvePoint Z;
+                try {
+                    Z = new EllipticCurvePoint(new BigInteger(inputFile.nextLine()), new BigInteger(inputFile.nextLine()));
+                } catch (NoSuchElementException | NumberFormatException e) {
+                    System.out.println("Oh no! Cryptogram file has been tampered.");
+                    break;
+                }
+                byte[] c;
+                try {
+                    c = hexToBytes(inputFile.nextLine());
+                } catch (NoSuchElementException | IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Oh no! Cryptogram file has been tampered.");
+                    break;
+                }
+                byte[] t;
+                try {
+                    t = hexToBytes(inputFile.nextLine());
+                } catch (NoSuchElementException | IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Oh no! Cryptogram file has been tampered.");
+                    break;
+                }
+                Cryptogram crypt = new Cryptogram(Z, c, t);
 
+                byte[] dec = ec.decrypt(crypt, passphrase);
+                // removes the last bit because it just encodes whether t = t'
+                byte t_equals_t_prime = dec[dec.length - 1];
+                dec = Arrays.copyOf(dec, dec.length - 1);
+                // accept if and only if t = t'
+                if (t_equals_t_prime == 1) {
+                    System.out.println("Decryption Complete. See \"" + args[1] + "\" file for the decryption.");
+                    out.println(new String(dec));
+                } else {
+                    System.out.println("Oh no! Decryption failed.");
+                }
             }
             case SIGN_FILE -> {
                 ec.fileSignature(data, passphrase, out);
-                System.out.println("Signing Complete. See output file for the signature.");
+                System.out.println("Signing Complete. See \"" + args[1] + "\" file for the signature.");
             }
             case VERIFY_FILE -> {
                 Scanner sigFile;
                 Scanner pkFile;
                 try {
                     sigFile = new Scanner(new File(args[1]));
+                    if (!sigFile.hasNext()) {
+                        System.out.println("Warning! Empty signature file \"" + args[1] + "\".");
+                        break;
+                    }
                 } catch (FileNotFoundException e) {
                     System.out.println("Sorry, cannot find signature file \"" + args[1] + "\". Please try again.");
-                    return;
+                    break;
                 }
                 try {
                     pkFile = new Scanner(new File(args[2]));
+                    if (!pkFile.hasNext()) {
+                        System.out.println("Warning! Empty public key file \"" + args[2] + "\".");
+                        break;
+                    }
                 } catch (FileNotFoundException e) {
                     System.out.println("Sorry, cannot find public key file \"" + args[2] + "\". Please try again.");
-                    return;
+                    break;
                 }
-                Signature sig = new Signature(new BigInteger(sigFile.nextLine()), new BigInteger(sigFile.nextLine()));
+                sigFile.nextLine();
+                Signature sig;
+                try {
+                    sig = new Signature(new BigInteger(sigFile.nextLine()), new BigInteger(sigFile.nextLine()));
+                } catch (NoSuchElementException | NumberFormatException e) {
+                    System.out.println("Oh no! Signature has been tampered.");
+                    break;
+                }
+                EllipticCurvePoint pk;
                 pkFile.nextLine();
-                EllipticCurvePoint pk = new EllipticCurvePoint(new BigInteger(pkFile.nextLine()), new BigInteger(pkFile.nextLine()));
+                try {
+                    pk = new EllipticCurvePoint(new BigInteger(pkFile.nextLine()), new BigInteger(pkFile.nextLine()));
+                } catch (NoSuchElementException | NumberFormatException e) {
+                    System.out.println("Oh no! Public Key has been tampered.");
+                    break;
+                }
 
                 if (ec.verifySignature(data, sig, pk)) {
-                    System.out.println("Signature Verified!");
+                    System.out.println("Signature Verified.");
                 } else {
-                    System.out.println("Rejected! Signature is not verified!");
+                    System.out.println("Rejected! Signature is not verified.");
                 }
+                pkFile.close();
+                sigFile.close();
             }
         }
 
@@ -216,16 +300,16 @@ public class Main {
      * Landing text and menu options.
      */
     private static void initTerminal() {
-        System.out.println("==========================\n=        Welcome!        =\n==========================");
-        System.out.println("\nThis application computes cryptographic hash using KMACXOF256 and elliptic curve cryptography using Ed448-Goldilocks.");
+        System.out.println("==================================================\n=                    Welcome!                    =\n==================================================");
+        System.out.println("\nThis application computes cryptographic hash using KMACXOF256\nand elliptic curve Diffie-Hellman.");
         System.out.println("To get started, here are the menu options. \nIf you wish to exit the application, enter \"q\"\n");
         System.out.println("Menu Options: (Enter a number):");
-        System.out.println("Part1: Using KMAC");
+        System.out.println("Part 1: Using KMAC");
         System.out.println("1) Hash data from input file\n2) Hash data from terminal input\n3) Create MAC from input file\n4) Create MAC from terminal input");
         System.out.println("5) Encrypt the input file\n6) Decrypt the input file");
-        System.out.println("\nPart2: Using Elliptic Curve");
-        System.out.println("7) Generate a Key Pair (output file <- public key, input file <- private key)\n8) Encrypt data from input file to output file using key file\n9) Decrypt data from input file to output file using passphrase");
-        System.out.println("10) Sign input file to output file using passphrase\n11) Verify a signed input file using signature file and public key file (output file <- signature file, password <- public key file)");
+        System.out.println("\nPart 2: Using Elliptic Curve");
+        System.out.println("7) Generate a Key Pair using passphrase\n8) Encrypt the input file using public key\n9) Decrypt the input file using passphrase");
+        System.out.println("10) Sign input file using passphrase\n11) Verify input file using signature and public key");
     }
 
     /**
@@ -237,7 +321,7 @@ public class Main {
         for (Scanner s : scanners) {
             if (s != null) s.close();
         }
-        System.out.println("==========================\n=   See you next time.   =\n==========================");
+        System.out.println("==================================================\n=               See you next time.               =\n==================================================");
         if (out != null) out.close();
     }
 

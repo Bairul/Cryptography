@@ -1,10 +1,8 @@
-import java.io.File;
 import java.io.PrintStream;
-import java.math.BigInteger;
 
 /**
- * Interface for defining the required methods for elliptic curve
- * cryptography. The definitions of the provided methods are from the
+ * Interface for defining the required methods for DHIES (Diffie-Hellman Integrated Encryption Scheme).
+ * The definitions of all the provided methods are from the
  * project specification paper.
  *
  * @author Paulo S. L. M. Barreto (my professor)
@@ -26,21 +24,21 @@ public interface EllipticCurveCryptography {
      * Encrypt a data file under a given elliptic public key file and write
      * the ciphertext to a file.
      *
-     * @param message   message to encrypt as byte array
-     * @param publicKey the public key as an elliptic curve point
-     * @return cryptogram Z || c || t
+     * @param message       message to encrypt as byte array
+     * @param publicKey     the public key as an elliptic curve point
+     * @param encryptedFile the file for outputting the cryptogram Z || c || t
      */
-    byte[] encrypt(byte[] message, EllipticCurvePoint publicKey);
+    void encrypt(byte[] message, EllipticCurvePoint publicKey, PrintStream encryptedFile);
 
     /**
      * Decrypt a given elliptic-encrypted file from a given password and
      * write the decrypted data to a file.
      *
-     * @param cryptogram the ciphertext as byte array
-     * @param passphrase the passphrase from the key pair
-     * @return the plaintext message as byte string
+     * @param cryptogram     the ciphertext in a cryptogram
+     * @param passphrase     the passphrase from the key pair
+     * @return the plaintext message as byte string || 0 or 1 depending on if t = t'
      */
-    byte[] decrypt(byte[] cryptogram, String passphrase);
+    byte[] decrypt(Cryptogram cryptogram, String passphrase);
 
     /**
      * Sign a given file from a given password and write the signature to
