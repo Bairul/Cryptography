@@ -3,7 +3,7 @@
  *
  * @author Markku-Juhani Saarinen (<a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.h" >Their C code implementation</a>)
  */
-public class SHA3Context {
+public final class SHA3Context {
     /** State context for 8-bit bytes. Used for processing the input data. */
     private byte[] b;
     /** The position within the data being hashed. */

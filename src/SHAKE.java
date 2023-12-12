@@ -1,5 +1,5 @@
 /**
- * Interface for defining required methods.
+ * Interface for defining required methods for cSHAKE.
  * The definitions of the provided methods are from
  * <a href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-185.pdf" >NIST</a>
  */

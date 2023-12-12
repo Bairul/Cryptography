@@ -9,12 +9,12 @@ import java.util.Objects;
  * @author Bairu Li
  * @version 1.0.0
  */
-public class EllipticCurvePoint {
+public final class EllipticCurvePoint {
     // constants for the curve equation
     /** The prime constant. 2^448 − 2^224 − 1. */
-    private static final BigInteger p = BigInteger.valueOf(2).pow(448).subtract(BigInteger.valueOf(2).pow(224)).subtract(BigInteger.ONE);
+    private static final BigInteger P = BigInteger.valueOf(2).pow(448).subtract(BigInteger.valueOf(2).pow(224)).subtract(BigInteger.ONE);
     /** The definition constant. */
-    private static final BigInteger d = BigInteger.valueOf(-39081);
+    private static final BigInteger D = BigInteger.valueOf(-39081);
 
     /** The x coordinate on the elliptic edwards curve. */
     private final BigInteger x;
@@ -23,6 +23,7 @@ public class EllipticCurvePoint {
 
     /**
      * Constructs edwards curve point at given an x and y coordinate.
+     *
      * @param theX the x as a BigInteger
      * @param theY the y as a BigInteger
      */
@@ -33,19 +34,20 @@ public class EllipticCurvePoint {
 
     /**
      * Constructs edwards curve point at a given y coordinate and the least significant bit of x.
-     * @param theY                 the y as a BigInteger
-     * @param leastSignificantBitX the least significant bit of x as a boolean (true: 1, false: 0)
+     *
+     * @param theY                    the y as a BigInteger
+     * @param theLeastSignificantBitX the least significant bit of x as a boolean (true: 1, false: 0)
      */
-    public EllipticCurvePoint(final BigInteger theY, boolean leastSignificantBitX) {
+    public EllipticCurvePoint(final BigInteger theY, final boolean theLeastSignificantBitX) {
         y = theY;
 
         // x = ±√( (1 − y^2) / (1 + 39081 * y^2) ) mod p
-        BigInteger ySq = theY.multiply(theY).mod(p);
+        BigInteger ySq = theY.multiply(theY).mod(P);
         BigInteger subRadicand1 = BigInteger.ONE.subtract(ySq);
-        BigInteger subRadicand2 = BigInteger.ONE.add(d.negate().multiply(ySq));
-        BigInteger radicand = subRadicand1.multiply(subRadicand2.modInverse(p)).mod(p);
+        BigInteger subRadicand2 = BigInteger.ONE.add(D.negate().multiply(ySq));
+        BigInteger radicand = subRadicand1.multiply(subRadicand2.modInverse(P)).mod(P);
 
-        x = Objects.requireNonNull(sqrt(radicand, p, leastSignificantBitX)).mod(p);
+        x = Objects.requireNonNull(sqrt(radicand, P, theLeastSignificantBitX)).mod(P);
     }
 
     /**
@@ -58,29 +60,31 @@ public class EllipticCurvePoint {
     /**
      * Performs an elliptic curve (edwards curve) addition between this point and another point.
      * This is uses the Edwards point addition formula.
-     * @param other the other point
+     *
+     * @param theOther the other point
      * @return the sum of two points
      */
-    public EllipticCurvePoint add(final EllipticCurvePoint other) {
+    public EllipticCurvePoint add(final EllipticCurvePoint theOther) {
         // shared constant for denominator: d * x1 * d2 * y1 * y2
-        BigInteger denom = d.multiply(x).multiply(other.x).multiply(y).multiply(other.y);
+        BigInteger denom = D.multiply(x).multiply(theOther.x).multiply(y).multiply(theOther.y);
 
         // N_x = x1 * y2 + y1 * x2
-        BigInteger sumXnumer = x.multiply(other.y).add(y.multiply(other.x));
+        BigInteger sumXnumer = x.multiply(theOther.y).add(y.multiply(theOther.x));
         // N_y = y1 * y2 − x1 * x2
-        BigInteger sumYnumer = y.multiply(other.y).subtract(x.multiply(other.x));
+        BigInteger sumYnumer = y.multiply(theOther.y).subtract(x.multiply(theOther.x));
 
         // D_x = 1 + denom
         BigInteger sumXdenom = BigInteger.ONE.add(denom);
         // D_y = 1 - denom
         BigInteger sumYdenom = BigInteger.ONE.subtract(denom);
 
-        return new EllipticCurvePoint(sumXnumer.multiply(sumXdenom.modInverse(p)).mod(p),
-                                      sumYnumer.multiply(sumYdenom.modInverse(p)).mod(p));
+        return new EllipticCurvePoint(sumXnumer.multiply(sumXdenom.modInverse(P)).mod(P),
+                                      sumYnumer.multiply(sumYdenom.modInverse(P)).mod(P));
     }
 
     /**
      * Gets the opposite point of this instance's point. Definition: the opposite a point (x, y) is (-x, y).
+     *
      * @return the opposite point
      */
     public EllipticCurvePoint getOppositePoint() {
@@ -90,15 +94,16 @@ public class EllipticCurvePoint {
     /**
      * Exponentiation algorithm for points in an elliptic curve. This method multiplies itself with a scalar.
      * Algorithm is written by converting the python code from the professor's slide.
-     * @param scalar the scalar
+     *
+     * @param theScalar the scalar
      * @return this current instance point multiplied by a scalar
      */
-    public EllipticCurvePoint multiplyByScalar (final BigInteger scalar) {
-        if (scalar.equals(BigInteger.ZERO)) {
+    public EllipticCurvePoint multiplyByScalar (final BigInteger theScalar) {
+        if (theScalar.equals(BigInteger.ZERO)) {
             return new EllipticCurvePoint(); // neutral element
         }
         // s = (s_k, s_k-1, ... s_1, s_0)_2, s_k = 1 and it gets ignored
-        String s = scalar.toString(2); // as base 2 string
+        String s = theScalar.toString(2); // as base 2 string
         // G (base) is "this" instance
         EllipticCurvePoint V = this;
 
@@ -115,22 +120,23 @@ public class EllipticCurvePoint {
     /**
      * Compute a square root of v mod p with a specified least-significant bit if such a root exists.
      * Code is taken from the project specification paper.
-     * @param v   the radicand
-     * @param p   the modulus (must satisfy p mod 4 = 3)
-     * @param lsb desired least significant bit (true: 1, false: 0)
+     *
+     * @param theV   the radicand
+     * @param theP   the modulus (must satisfy p mod 4 = 3)
+     * @param theLsb desired least significant bit (true: 1, false: 0)
      * @return a square root r of v mod p with r mod 2 = 1 iff lsb = true
      *         if such a root exists, otherwise null
      */
-    private static BigInteger sqrt(BigInteger v, BigInteger p, boolean lsb) {
-        assert (p.testBit(0) && p.testBit(1)); // p = 3 (mod 4)
-        if (v.signum() == 0) {
+    private static BigInteger sqrt(final BigInteger theV, final BigInteger theP, final boolean theLsb) {
+        assert (theP.testBit(0) && theP.testBit(1)); // p = 3 (mod 4)
+        if (theV.signum() == 0) {
             return BigInteger.ZERO;
         }
-        BigInteger r = v.modPow(p.shiftRight(2).add(BigInteger.ONE), p);
-        if (r.testBit(0) != lsb) {
-            r = p.subtract(r); // correct the lsb
+        BigInteger r = theV.modPow(theP.shiftRight(2).add(BigInteger.ONE), theP);
+        if (r.testBit(0) != theLsb) {
+            r = theP.subtract(r); // correct the lsb
         }
-        return (r.multiply(r).subtract(v).mod(p).signum() == 0) ? r : null;
+        return (r.multiply(r).subtract(theV).mod(theP).signum() == 0) ? r : null;
     }
 
     /**
@@ -138,21 +144,23 @@ public class EllipticCurvePoint {
      * G is defined as a point (x_0, y_0)
      * where y_0 = -3 (mod p)
      * and   x_0 = certain unique even number
+     *
      * @return G (public generator)
      */
     public static EllipticCurvePoint getPublicGenerator() {
         // if x is even, then the least sig bit must be 0
-        return new EllipticCurvePoint(BigInteger.valueOf(-3).mod(p), false);
+        return new EllipticCurvePoint(BigInteger.valueOf(-3).mod(P), false);
     }
 
     /**
      * Tests if another elliptic curve point is the equal to this one by comparing x and y values.
-     * @param obj the object to test for equality
+     * @param theObj the object to test for equality
+     *
      * @return true or false for equality
      */
     @Override
-    public boolean equals(final Object obj) {
-        if (obj instanceof EllipticCurvePoint other) {
+    public boolean equals(final Object theObj) {
+        if (theObj instanceof EllipticCurvePoint other) {
             return x.equals(other.x) && y.equals(other.y);
         }
         return false;
@@ -160,6 +168,7 @@ public class EllipticCurvePoint {
 
     /**
      * Returns the x and y values of this Elliptic Curve Point.
+     *
      * @return the x and y coordinates separated by a new line
      */
     @Override
@@ -169,6 +178,7 @@ public class EllipticCurvePoint {
 
     /**
      * Getter of the x value.
+     *
      * @return the x value of this point
      */
     public BigInteger getX() {

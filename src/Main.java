@@ -6,12 +6,21 @@ import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
+/**
+ * TCSS 387 Cryptography
+ * 12/7/2023
+ * <p>
+ * This project contains symmetric and asymmetric encryption and digital signatures at the 256-bit security level.
+ * Implements KMACXOF256 and ECDHIES (Elliptic Curve Diffie-Hellman Integrated Encryption Scheme) implementation.
+ *
+ * @author Bairu Li
+ * @version 1.0.0
+ */
 public class Main {
-    /** Hexadecimal values in char array. */
-    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 
     /**
      * Main method.
+     *
      * @param args input/output files and passphrase
      */
     public static void main(final String[] args) {
@@ -73,7 +82,7 @@ public class Main {
             case HASH_FILE -> {
                 // computing a cryptographic hash h of a byte array data
                 // h <- KMACXOF256(“”, data, 512, “D”)
-                printHexadecimals(KMAC.KMACXOF256("".getBytes(), data, 512, "D"), out);
+                ByteStringUtil.printHexadecimals(KMAC.KMACXOF256("".getBytes(), data, 512, "D"), out);
                 System.out.println("Hash complete. See output file for the hash in hex.");
             }
             case HASH_INPUT -> {
@@ -82,13 +91,13 @@ public class Main {
                 inputFile = new Scanner(scan.nextLine());
                 data = getDataFromFile(inputFile);
                 // h <- KMACXOF256(“”, data, 512, “D”)
-                printHexadecimals(KMAC.KMACXOF256("".getBytes(), data, 512, "D"), out);
+                ByteStringUtil.printHexadecimals(KMAC.KMACXOF256("".getBytes(), data, 512, "D"), out);
                 System.out.println("Hash complete. See output file for the hash in hex.");
             }
             case MAC_FILE -> {
                 // computing an authentication tag t of a byte array data under passphrase
                 // t <- KMACXOF256(passphrase, data, 512, “T”)
-                printHexadecimals(KMAC.KMACXOF256(new CSHAKE().encode_string(passphrase), data, 512, "T"), out);
+                ByteStringUtil.printHexadecimals(KMAC.KMACXOF256(new CSHAKE().encode_string(passphrase), data, 512, "T"), out);
                 System.out.println("MAC complete. See output file for the MAC in hex.");
             }
             case MAC_INPUT -> {
@@ -97,11 +106,11 @@ public class Main {
                 inputFile = new Scanner(scan.nextLine());
                 data = getDataFromFile(inputFile);
                 // t <- KMACXOF256(passphrase, data, 512, “T”)
-                printHexadecimals(KMAC.KMACXOF256(new CSHAKE().encode_string(passphrase), data, 512, "T"), out);
+                ByteStringUtil.printHexadecimals(KMAC.KMACXOF256(new CSHAKE().encode_string(passphrase), data, 512, "T"), out);
                 System.out.println("MAC complete. See output file for the MAC in hex.");
             }
             case ENCRYPT_FILE -> {
-                printHexadecimals(KMAC.encrypt(data, passphrase), out);
+                ByteStringUtil.printHexadecimals(KMAC.encrypt(data, passphrase), out);
                 System.out.println("Encryption Complete. See output file for the encryption.");
             }
             case DECRYPT_FILE -> {
@@ -109,7 +118,7 @@ public class Main {
                     System.out.println("Oh no! Decryption failed. ");
                     break;
                 }
-                data = hexToBytes(inputFile.nextLine());
+                data = ByteStringUtil.hexToBytes(inputFile.nextLine());
                 byte[] dec;
                 try {
                     dec = KMAC.decrypt(data, passphrase);
@@ -180,14 +189,14 @@ public class Main {
                 }
                 byte[] c;
                 try {
-                    c = hexToBytes(inputFile.nextLine());
+                    c = ByteStringUtil.hexToBytes(inputFile.nextLine());
                 } catch (NoSuchElementException | IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
                     System.out.println("Oh no! Cryptogram file has been tampered.");
                     break;
                 }
                 byte[] t;
                 try {
-                    t = hexToBytes(inputFile.nextLine());
+                    t = ByteStringUtil.hexToBytes(inputFile.nextLine());
                 } catch (NoSuchElementException | IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
                     System.out.println("Oh no! Cryptogram file has been tampered.");
                     break;
@@ -265,14 +274,15 @@ public class Main {
 
     /**
      * Gets the option from user input.
-     * @param userInput user input string
+     *
+     * @param theUserInput user input string
      * @return option selection as a OptionSelect
      */
-    private static OptionSelect menuOptions(String userInput) {
-        if (userInput == null) return OptionSelect.UNKNOWN;
+    private static OptionSelect menuOptions(final String theUserInput) {
+        if (theUserInput == null) return OptionSelect.UNKNOWN;
 
         try {
-            int num = Integer.parseInt(userInput);
+            int num = Integer.parseInt(theUserInput);
             switch (num) {
                 case (1)  -> { return OptionSelect.HASH_FILE;       }
                 case (2)  -> { return OptionSelect.HASH_INPUT;      }
@@ -314,15 +324,16 @@ public class Main {
 
     /**
      * Closes all input and output and shows exit text.
-     * @param out      output file
-     * @param scanners input files
+     *
+     * @param theOut      output file
+     * @param theScanners input files
      */
-    private static void quitTerminal(PrintStream out, Scanner... scanners) {
-        for (Scanner s : scanners) {
+    private static void quitTerminal(final PrintStream theOut, final Scanner... theScanners) {
+        for (Scanner s : theScanners) {
             if (s != null) s.close();
         }
         System.out.println("==================================================\n=               See you next time.               =\n==================================================");
-        if (out != null) out.close();
+        if (theOut != null) theOut.close();
     }
 
     /**
@@ -330,51 +341,20 @@ public class Main {
      * <br>
      * Example:
      * <li>0x 00 01 02</li>
-     * @param file the input file
+     *
+     * @param theFile the input file
      * @return byte array containing the contents of the input file
      */
-    private static byte[] getDataFromFile(Scanner file) {
-        if (!file.hasNext()) {
+    private static byte[] getDataFromFile(final Scanner theFile) {
+        if (!theFile.hasNext()) {
             return "".getBytes();
         }
         StringBuilder fileConents = new StringBuilder();
 
-        while (file.hasNextLine()) {
-            fileConents.append(file.nextLine()).append("\n");
+        while (theFile.hasNextLine()) {
+            fileConents.append(theFile.nextLine()).append("\n");
         }
 
         return fileConents.toString().getBytes();
-    }
-
-    /**
-     * Prints the hexadecimals of a byte array to a output stream.
-     * This method is taken from <a href="https://stackoverflow.com/questions/9655181/java-convert-a-byte-array-to-a-hex-string">Stackoverflow</a>.
-     * @param bytes the byte array
-     * @param out   the output
-     */
-    public static void printHexadecimals(byte[] bytes, PrintStream out) {
-        char[] hexChars = new char[bytes.length * 2];
-        for (int j = 0; j < bytes.length; j++) {
-            int v = bytes[j] & 0xFF;
-            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
-            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
-        }
-        out.println(new String(hexChars));
-    }
-
-    /**
-     * Converts a string of hexadecimals to a byte array.
-     * @param hexString the hex string
-     * @return byte array of the hex string
-     */
-    public static byte[] hexToBytes(String hexString) {
-        byte[] b = new byte[hexString.length() / 2];
-
-        for (int i = 0; i < b.length; i++) {
-            b[i] = (byte) ((Character.digit(hexString.charAt(2 * i), 16) << 4)
-                          + Character.digit(hexString.charAt(2 * i + 1), 16));
-        }
-
-        return b;
     }
 }

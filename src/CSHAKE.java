@@ -1,9 +1,6 @@
 import java.util.Arrays;
 
 /**
- * TCSS 387 Cryptography
- * 11/4/2023
- * <p>
  * cSHAKE256 and KMACXOF256 implementation.
  *
  * @author Markku-Juhani Saarinen (<a href="https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c" >Their C code implementation</a>)
@@ -11,7 +8,7 @@ import java.util.Arrays;
  * @author Bairu Li
  * @version 1.0.0
  */
-public class CSHAKE implements SHAKE {
+public final class CSHAKE implements SHAKE {
     /** Round Constant. Taken from Markku-Juhani Saarinen. (line 14 in sha.c) */
     private static final long[] keccakf_rndc = {
             0x0000000000000001L, 0x0000000000008082L, 0x800000000000808aL,
@@ -39,28 +36,6 @@ public class CSHAKE implements SHAKE {
     private boolean ext;
 
     /**
-     * cSHAKE256. Method body is taken and translated from the professor's slides.
-     *
-     * @param X the main input bit string. Can be of any length including 0
-     * @param L requested output bit-length
-     * @param N function name bit-string
-     * @param S customization bit-string
-     */
-    public static byte[] cSHAKE256(byte[] X, int L, String N, String S) {
-        if ((L & 7) != 0) {
-            throw new RuntimeException("Implementation restriction: output length (in bits) must be a multiple of 8");
-        }
-        byte[] out = new byte[L >>> 3];
-        CSHAKE shake = new CSHAKE();
-        SHA3Context c = new SHA3Context();
-        shake.cShake256_init(c, N, S);
-        shake.sha3_update(c, X, X.length);
-        shake.xof(c);
-        shake.shake_out(c, out, L >>> 3);
-        return out; // SHAKE256(X, L) or KECCAK512(prefix || X || 00, L)
-    }
-
-    /**
      * Initializes cShake256 using definition from NIST.
      *
      * @param c the sha3 context
@@ -77,7 +52,7 @@ public class CSHAKE implements SHAKE {
          */
         if (N.length() != 0 || S.length() != 0) {
             ext = true;
-            byte[] padding = bytepad(concat(encode_string(N), encode_string(S)), 136);
+            byte[] padding = bytepad(ByteStringUtil.concat(encode_string(N), encode_string(S)), 136);
             sha3_update(c, padding, padding.length);
         }
     }
@@ -126,6 +101,7 @@ public class CSHAKE implements SHAKE {
      * Initializes the context sha3 algorithm.
      * Sha3-128 would have a md length of 16 while Sha3-256 would have a md length of 32.
      * Some of the code is taken from Markku-Juhani Saarinen (line 103 in sha.c).
+     *
      * @param c     the sha3 context
      * @param mdlen the md length
      */
@@ -143,6 +119,7 @@ public class CSHAKE implements SHAKE {
      * Updates the context with (internal state) with new input data. Repeated use of this method
      * concatenates by appending the new input data with the current context.
      * Code is taken from Markku-Juhani Saarinen (line 118 in sha.c).
+     *
      * @param c    the sha3 context
      * @param data the data
      * @param len  the length of the desired output
@@ -249,6 +226,7 @@ public class CSHAKE implements SHAKE {
 
     /**
      * Used for the keccak algorithm. Markku-Juhani Saarinen (line 15 in sha.h).
+     *
      * @param x the x
      * @param y the y
      * @return the rot
@@ -290,17 +268,18 @@ public class CSHAKE implements SHAKE {
         // left encodes s.len * 8
         byte[] sLen_encoded = left_encode(s.length() << 3);
         byte[] s_bytes = s.getBytes();
-        return concat(sLen_encoded, s_bytes);
+        return ByteStringUtil.concat(sLen_encoded, s_bytes);
     }
 
     /**
      * Encodes a byte array instead of a String.
+     *
      * @param s byte array
      * @return encoded byte array
      */
     public byte[] encode_string(byte[] s) {
         byte[] sLen_encoded = left_encode(s.length << 3);
-        return concat(sLen_encoded, s);
+        return ByteStringUtil.concat(sLen_encoded, s);
     }
 
     /**
@@ -340,19 +319,5 @@ public class CSHAKE implements SHAKE {
         x_encoded[x_encoded.length - 1] = (byte) (x_encoded.length - 1);
 
         return x_encoded;
-    }
-
-    /**
-     * Helper function to concatenate 2 byte strings a and b. b is appended on to a.
-     *
-     * @param a byte string a
-     * @param b byte string b
-     * @return byte string of a + b
-     */
-    public byte[] concat(byte[] a, byte[] b) {
-        byte[] c = new byte[a.length + b.length];
-        System.arraycopy(a, 0, c, 0, a.length);
-        System.arraycopy(b, 0, c, a.length, b.length);
-        return c;
     }
 }

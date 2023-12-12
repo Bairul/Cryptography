@@ -3,10 +3,11 @@ import java.util.Arrays;
 
 /**
  * Class for encryption and decryption using a MAC.
+ *
  * @author Paulo S. L. M. Barreto (my professor)
  * @author Bairu Li
  */
-public class KMAC {
+public final class KMAC {
     /**
      * Compute KMACXOF256. Method body is taken from the professor's slides.
      *
@@ -40,16 +41,13 @@ public class KMAC {
      * @return symmetric cryptogram z || c || t
      */
     public static byte[] encrypt(byte[] message, String passphrase) {
-        CSHAKE s = new CSHAKE(); // for reusing already written concatenation method
-        byte[] p_encoded = s.encode_string(passphrase);
-
         // z <- Random(512)
         SecureRandom sr = new SecureRandom();
         byte[] z = new byte[64];
         sr.nextBytes(z);
 
         // (ke || ka) <- KMACXOF256(z || pw, “”, 1024, “S”)
-        byte[] keka = KMACXOF256(s.concat(z, p_encoded), "".getBytes(), 1024, "S");
+        byte[] keka = KMACXOF256(ByteStringUtil.concat(z, passphrase.getBytes()), "".getBytes(), 1024, "S");
 
         // 1024 / 8 = 128 byte length
         // c <- KMACXOF256(ke, “”, |m|, “SKE”) XOR m
@@ -62,20 +60,18 @@ public class KMAC {
         byte[] t = KMACXOF256(Arrays.copyOfRange(keka, 64, 128), message, 512, "SKA");
 
         // symmetric cryptogram (z, c, t)
-        return s.concat(s.concat(z, c), t);
+        return ByteStringUtil.concat(ByteStringUtil.concat(z, c), t);
     }
 
     /**
      * Decryption ciphertext cryptogram using the passphrase.
      * Code is written by translating the pseudocode given by the professor.
+     *
      * @param cryptogram the ciphertext as byte array
      * @param passphrase passphrase string
      * @return the plaintext message as byte string || 0 or 1 depending on if t = t'
      */
     public static byte[] decrypt(byte[] cryptogram, String passphrase) {
-        CSHAKE s = new CSHAKE(); // for reusing already written concatenation method
-        byte[] p_encoded = s.encode_string(passphrase);
-
         // z is concatenated first with a byte length of 64
         byte[] z = Arrays.copyOfRange(cryptogram, 0, 64);
         // t is concatenated last with a byte length of 64. (512 bits / 8)
@@ -84,7 +80,7 @@ public class KMAC {
         byte[] c = Arrays.copyOfRange(cryptogram,64, cryptogram.length - 64);
 
         // (ke || ka) <- KMACXOF256(z || pw, “”, 1024, “S”)
-        byte[] keka = KMACXOF256(s.concat(z, p_encoded), "".getBytes(), 1024, "S");
+        byte[] keka = KMACXOF256(ByteStringUtil.concat(z, passphrase.getBytes()), "".getBytes(), 1024, "S");
 
         // m <- KMACXOF256(ke, “”, |c|, “SKE”) XOR c
         byte[] m = KMACXOF256(Arrays.copyOfRange(keka, 0, 64), "".getBytes(), 8 * c.length, "SKE");
@@ -96,6 +92,6 @@ public class KMAC {
         byte[] t_prime = KMACXOF256(Arrays.copyOfRange(keka, 64, 128), m, 512, "SKA");
 
         // m || (t=t')
-        return s.concat(m, Arrays.equals(t, t_prime) ? new byte[] {1} : new byte[] {0});
+        return ByteStringUtil.concat(m, Arrays.equals(t, t_prime) ? new byte[] {1} : new byte[] {0});
     }
 }
